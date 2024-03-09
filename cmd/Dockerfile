@@ -1,6 +1,6 @@
  #not optimal
 
-FROM golang:1.21.5
+FROM golang:1.21.5 AS build-stage
 
 
 WORKDIR /app
@@ -12,10 +12,12 @@ RUN go mod download && go mod verify
 
 COPY main.go ./
 
-RUN go build -o /cmd
+RUN CGO_ENABLED=0 GOOS=linux go build -o /cmd
 
-FROM gcr.io/distroless/base-debian11
+FROM gcr.io/distroless/base-debian11 AS build-release-stage
 
-COPY --from=build /cmd /cmd
+WORKDIR /
+
+COPY --from=build-stage /cmd /cmd
 
 ENTRYPOINT [ "/cmd" ]
