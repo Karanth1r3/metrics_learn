@@ -62,7 +62,7 @@ func main() {
 	m.info.With(prometheus.Labels{"version": version}).Set(1)
 
 	dMux := http.NewServeMux()
-	dMux.HandleFunc("/devices", getDevices)
+	dMux.HandleFunc("/devices", registerDevices)
 
 	pMux := http.NewServeMux()
 	promHandler := promhttp.HandlerFor(reg, promhttp.HandlerOpts{})
@@ -83,11 +83,38 @@ func main() {
 func getDevices(w http.ResponseWriter, r *http.Request) {
 	b, err := json.Marshal(devices)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Conent-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(b)
+}
+
+func registerDevices(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		getDevices(w, r)
+	case "POST":
+		createDevice(w, r)
+	default:
+		w.Header().Set("Allow", "GET, POST")
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func createDevice(w http.ResponseWriter, r *http.Request) {
+	var dvc Device
+
+	err := json.NewDecoder(r.Body).Decode(&dvc)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	devices = append(devices, dvc)
+
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte("Device created"))
 }
